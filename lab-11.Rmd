@@ -1,36 +1,101 @@
 ---
-title: "Lab 11 - Grading the professor, Pt. 2"
-author: "Insert your name here"
-date: "Insert date here"
+title: "Lab 11 - Titanic"
+author: "Sophie Boyd"
+date: "3-20-26"
 output: github_document
 ---
 
 ## Load packages and data
 
-```{r load-packages, message=FALSE}
+```{r load-packages, message=FALSE, warning=FALSE}
 library(tidyverse) 
-library(tidymodels)
-library(openintro)
+library(titanic)
+library(readxl)
 ```
+
+```{r read-data}
+titanic3 <- read_excel("data/titanic3.xls",
+    col_types = c("numeric", "numeric", "text",
+        "text", "numeric", "numeric", "numeric",
+        "text", "numeric", "text", "text",
+        "text", "text", "text"))
+
+data("titanic_train")
+data("titanic_test")
+```
+
+```{r clean-data}
+# Rename columns to lowercase
+names(titanic3) <- names(titanic3) %>% tolower()
+names(titanic_train) <- names(titanic_train) %>% tolower()
+names(titanic_test) <- names(titanic_test) %>% tolower()
+
+# Convert pclass to factor
+
+titanic_train <- titanic_train %>%
+  mutate(pclass_ord = factor(pclass, ordered = TRUE, levels = c(3, 2, 1)))
+
+titanic_test <- titanic_test %>%
+  mutate(pclass_ord = factor(pclass, ordered = TRUE, levels = c(3, 2, 1)))
+
+titanic3 <- titanic3 %>%
+  mutate(pclass_ord = factor(pclass, ordered = TRUE, levels = c(3, 2, 1)))
+```
+
+```{r view-data}
+glimpse(titanic_test)
+summary(titanic_test)
+
+glimpse(titanic_train)
+glimpse(titanic_train)
+
+glimpse(titanic3)
+summary(titanic3)
+```
+
+titanic_test has 418 observations, titanic_train has 891 observations, and titanic3 has 1309 observations. Available variables include the passengers' ID numbers, class (SES proxy), names, sex, ages, number of siblings/spouses on board, number of parents/children on board, ticket numbers, fare amounts, cabin numbers, embarkation locations, lifeboat numbers (for those who survived), body identification numbers (for those who did not survive and were recovered), and homes/destinations. There are many missing values on cabin number. 
+
+# Part 1: Apparent accuracy
 
 ## Exercise 1
 
-*Provide your answer here.*  
-Add code chunks as needed. Ensure code chunks are properly labeled without spaces.
+```{r m_apparent}
+m_apparent <- glm(
+  survived ~ sex + pclass,
+  data = titanic3,
+  family = binomial
+)
 
-```{r exercise1_code}
-# Add your R code here
+summary(m_apparent)
 ```
 
-## Exercise 2
+## Exercise 1.2
 
-*Provide your answer here.*  
-Add code chunks as needed.
+```{r p_apparent}
+p_apparent <- predict(m_apparent, type = "response")
 
-```{r exercise2_code}
-# Add your R code here
+p_apparent
 ```
 
-## Additional Exercises
+## Exercise 1.3
 
-*Repeat the format above for additional exercises.*
+```{r yhat_apparent}
+yhat_apparent <- ifelse(p_apparent > 0.5, 1, 0)
+
+yhat_apparent
+```
+
+## Exercise 1.4
+
+```{r acc_apparent}
+acc_apparent <- mean(yhat_apparent == titanic3$survived, na.rm = TRUE)
+
+acc_apparent
+```
+
+## Exercise 1.5
+
+- Apparent accuracy likely overestimates true predictive performance because it was calculated based on data from an event that already occurred. The circumstances of a future event could be different, so a predictive model designed from a past event would not be as effective for predicting future survival rates. 
+
+- If you were trying to predict academic performance from hours spent studying, testing on the same data you trained on would probably give misleadingly good results. If you tried to apply the prediction model to performance in future classes, the accuracy rate would drop (assuming that the future classes were more difficult). 
+
