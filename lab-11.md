@@ -753,13 +753,87 @@ acc_apparent
 ## Exercise 1.5
 
 - Apparent accuracy likely overestimates true predictive performance
-  because it was calculated based on data from an event that already
-  occurred. The circumstances of a future event could be different, so a
-  predictive model designed from a past event would not be as effective
-  for predicting future survival rates.
+  because it is calculated based on all of the available information
+  about an event. The goal of the predictive model is to predict the
+  unknown, and this capability is not put to the test when all of the
+  known information was used to create the model.
 
-- If you were trying to predict academic performance from hours spent
-  studying, testing on the same data you trained on would probably give
-  misleadingly good results. If you tried to apply the prediction model
-  to performance in future classes, the accuracy rate would drop
-  (assuming that the future classes were more difficult).
+- Testing on the same data you trained on would also likely give
+  misleadingly good results if you were trying to predict the efficacy
+  of a drug for a particular health outcome.
+
+# Part 2: Holding passengers back
+
+## Exercise 2.1
+
+``` r
+m_split <- glm(
+  survived ~ sex + pclass,
+  data = titanic_train,
+  family = binomial
+)
+
+summary(m_split)
+```
+
+    ## 
+    ## Call:
+    ## glm(formula = survived ~ sex + pclass, family = binomial, data = titanic_train)
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)   3.2946     0.2974  11.077   <2e-16 ***
+    ## sexmale      -2.6434     0.1838 -14.380   <2e-16 ***
+    ## pclass       -0.9606     0.1061  -9.057   <2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## (Dispersion parameter for binomial family taken to be 1)
+    ## 
+    ##     Null deviance: 1186.7  on 890  degrees of freedom
+    ## Residual deviance:  827.2  on 888  degrees of freedom
+    ## AIC: 833.2
+    ## 
+    ## Number of Fisher Scoring iterations: 4
+
+## Exercise 2.2
+
+``` r
+p_train <- predict(m_split, type = "response")
+yhat_train <- ifelse(p_train > 0.5, 1, 0)
+
+acc_train <- mean(yhat_train == titanic_train$survived, na.rm = TRUE)
+acc_train
+```
+
+    ## [1] 0.7867565
+
+## Exercise 2.3
+
+``` r
+p_test <- predict(m_split, newdata = titanic_test, type = "response")
+yhat_test <- ifelse(p_test > 0.5, 1, 0)
+
+acc_test <- mean(yhat_test == titanic_test$survived, na.rm = TRUE)
+acc_test
+```
+
+    ## [1] NaN
+
+## Exercise 2.4
+
+- acc_train was .79 and acc_test was undefined. Assuming acc_train is
+  supposed to be larger, this pattern is typical because acc_train was
+  applied to the data that informed the model, whereas acc_test was the
+  result of testing a predictive model on data that was not involved in
+  the model’s creation.
+
+- A measure of how well the model predicts future passengers is most
+  useful for Lloyd’s.
+
+- If acc_test happened to be higher than acc_train, the logic of holdout
+  testing would still apply. The key feature of holdout testing is that
+  it allows for testing on new data that did not inform the creation of
+  the model.
+
+## Part 3: Cross validation across timelines
