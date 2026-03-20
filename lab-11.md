@@ -836,4 +836,110 @@ acc_test
   it allows for testing on new data that did not inform the creation of
   the model.
 
-## Part 3: Cross validation across timelines
+# Part 3: Cross validation across timelines
+
+## Exercise 3.1
+
+``` r
+set.seed(11)
+
+titanic_cv <- titanic3 %>%
+  filter(!is.na(survived), !is.na(sex), !is.na(pclass)) %>%
+  mutate(fold = sample(rep(1:10, length.out = n())))
+
+titanic_cv %>% count(fold)
+```
+
+    ## # A tibble: 10 × 2
+    ##     fold     n
+    ##    <int> <int>
+    ##  1     1   131
+    ##  2     2   131
+    ##  3     3   131
+    ##  4     4   131
+    ##  5     5   131
+    ##  6     6   131
+    ##  7     7   131
+    ##  8     8   131
+    ##  9     9   131
+    ## 10    10   130
+
+## Exercise 3.2
+
+``` r
+cv_results <- data.frame(fold = sort(unique(titanic_cv$fold)), accuracy = NA_real_) 
+for (j in cv_results$fold) {
+  train_j <- titanic_cv %>% filter(fold != j)
+  test_j <- titanic_cv %>% filter(fold == j)
+  
+  m_j <- glm(
+    formula = survived ~ sex + pclass,
+    data = train_j,
+    family = binomial
+  )
+  
+  p_j <- predict(m_j, newdata = test_j, type = "response")
+  yhat_j <- ifelse(p_j > 0.5, 1, 0)
+  
+  cv_results$accuracy[cv_results$fold == j] <- mean(yhat_j == test_j$survived, na.rm = TRUE)
+}
+
+cv_results %>% arrange(fold)
+```
+
+    ##    fold  accuracy
+    ## 1     1 0.8015267
+    ## 2     2 0.7557252
+    ## 3     3 0.7709924
+    ## 4     4 0.8320611
+    ## 5     5 0.8244275
+    ## 6     6 0.7862595
+    ## 7     7 0.7328244
+    ## 8     8 0.8091603
+    ## 9     9 0.7557252
+    ## 10   10 0.7307692
+
+## Exercise 3.3
+
+``` r
+cv_mean <- mean(cv_results$accuracy)
+cv_sd <- sd(cv_results$accuracy)
+cv_min <- min(cv_results$accuracy)
+cv_max <- max(cv_results$accuracy)
+
+c(cv_mean = cv_mean, cv_sd = cv_sd, cv_min = cv_min, cv_max = cv_max)
+```
+
+    ##    cv_mean      cv_sd     cv_min     cv_max 
+    ## 0.77994715 0.03643244 0.73076923 0.83206107
+
+## Exercise 3.4
+
+``` r
+ggplot(cv_results, aes(x = factor(fold), y = accuracy)) +
+  geom_col(fill = "steelblue") +
+  geom_hline(yintercept = mean(cv_results$accuracy), linetype = "dashed", color = "red") +
+  labs(
+    title = "10-Fold Cross Validation: Accuracy by Fold",
+    x = "Fold",
+    y = "Accuracy"
+  ) +
+  theme_minimal()
+```
+
+![](lab-11_files/figure-gfm/cv-accuracy-plot-1.png)<!-- -->
+
+## Exercise 3.5
+
+- cv_mean is usually lower than acc_apparent because it is the mean of
+  accuracy rates from models that were tested on new data that was not
+  used for training, whereas acc_apparent is an accuracy rate of a model
+  tested on data that was involved in its training. Testing on data that
+  was used to train a model inflates accuracy.
+
+- cv_sd provides information about how much the accuracy rates of the
+  different test models differed from one another.
+
+- I would report cv_mean because I have more confidence in an accuracy
+  measure drawn from multiple model tests rather than a single model
+  test.

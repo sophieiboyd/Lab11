@@ -141,6 +141,72 @@ acc_test
 
 - If acc_test happened to be higher than acc_train, the logic of holdout testing would still apply. The key feature of holdout testing is that it allows for testing on new data that did not inform the creation of the model. 
 
-## Part 3: Cross validation across timelines
+# Part 3: Cross validation across timelines
 
+## Exercise 3.1
 
+```{r titanic_cv}
+set.seed(11)
+
+titanic_cv <- titanic3 %>%
+  filter(!is.na(survived), !is.na(sex), !is.na(pclass)) %>%
+  mutate(fold = sample(rep(1:10, length.out = n())))
+
+titanic_cv %>% count(fold)
+```
+
+## Exercise 3.2
+
+```{r cv_results}
+cv_results <- data.frame(fold = sort(unique(titanic_cv$fold)), accuracy = NA_real_) 
+for (j in cv_results$fold) {
+  train_j <- titanic_cv %>% filter(fold != j)
+  test_j <- titanic_cv %>% filter(fold == j)
+  
+  m_j <- glm(
+    formula = survived ~ sex + pclass,
+    data = train_j,
+    family = binomial
+  )
+  
+  p_j <- predict(m_j, newdata = test_j, type = "response")
+  yhat_j <- ifelse(p_j > 0.5, 1, 0)
+  
+  cv_results$accuracy[cv_results$fold == j] <- mean(yhat_j == test_j$survived, na.rm = TRUE)
+}
+
+cv_results %>% arrange(fold)
+```
+
+## Exercise 3.3
+
+```{r cv-summary}
+cv_mean <- mean(cv_results$accuracy)
+cv_sd <- sd(cv_results$accuracy)
+cv_min <- min(cv_results$accuracy)
+cv_max <- max(cv_results$accuracy)
+
+c(cv_mean = cv_mean, cv_sd = cv_sd, cv_min = cv_min, cv_max = cv_max)
+```
+
+## Exercise 3.4
+
+```{r cv-accuracy-plot}
+ggplot(cv_results, aes(x = factor(fold), y = accuracy)) +
+  geom_col(fill = "steelblue") +
+  geom_hline(yintercept = mean(cv_results$accuracy), linetype = "dashed", color = "red") +
+  labs(
+    title = "10-Fold Cross Validation: Accuracy by Fold",
+    x = "Fold",
+    y = "Accuracy"
+  ) +
+  theme_minimal()
+```
+
+## Exercise 3.5
+
+- cv_mean is usually lower than acc_apparent because it is the mean of accuracy rates from models that were tested on new data that was not used for training, whereas acc_apparent is an accuracy rate of a model tested on data that was involved in its training. Testing on data that was used to train a model inflates accuracy.
+
+- cv_sd provides information about how much the accuracy rates of the different test models differed from one another. 
+
+- I would report cv_mean because I have more confidence in an accuracy measure drawn from multiple model tests rather than a single model test. 
