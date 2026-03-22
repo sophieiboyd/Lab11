@@ -820,13 +820,32 @@ acc_test
 
     ## [1] NaN
 
+I got “NaN” as my result above because the titanic_test dataset is
+missing the “survived” variable. Here is my attempt at merging it in and
+re-running:
+
+``` r
+titanic3_survived <- titanic3 %>%
+  select(survived, ticket, name)
+
+titanic_test_survived <- left_join(titanic_test, titanic3_survived, by = "name")
+
+p_test <- predict(m_split, newdata = titanic_test_survived, type = "response")
+yhat_test <- ifelse(p_test > 0.5, 1, 0)
+
+acc_test <- mean(yhat_test == titanic_test_survived$survived, na.rm = TRUE)
+acc_test
+```
+
+    ## [1] 0.7626263
+
 ## Exercise 2.4
 
-- acc_train was .79 and acc_test was undefined. Assuming acc_train is
-  supposed to be larger, this pattern is typical because acc_train was
-  applied to the data that informed the model, whereas acc_test was the
-  result of testing a predictive model on data that was not involved in
-  the model’s creation.
+- acc_train was .79 and acc_test was .76. acc_train was larger and this
+  pattern is typical because acc_train was applied to the data that
+  informed the model, whereas acc_test was the result of testing a
+  predictive model on data that was not involved in the model’s
+  creation.
 
 - A measure of how well the model predicts future passengers is most
   useful for Lloyd’s.
@@ -943,3 +962,74 @@ ggplot(cv_results, aes(x = factor(fold), y = accuracy)) +
 - I would report cv_mean because I have more confidence in an accuracy
   measure drawn from multiple model tests rather than a single model
   test.
+
+# Part 4: When the cutoff is a policy decision
+
+## Exercise 4.1
+
+``` r
+cutoffs <- c(0.3, 0.5, 0.7)
+
+cutoff_results <- data.frame(
+  cutoff = cutoffs,
+  accuracy = NA_real_
+)
+
+for (i in seq_along(cutoffs)) {
+  c0 <- cutoffs[i]
+  
+  yhat_c <- ifelse(p_test > c0, 1, 0)
+  cutoff_results$accuracy[i] <- mean( yhat_c == titanic_test_survived$survived, na.rm = TRUE)
+}
+
+cutoff_results
+```
+
+    ##   cutoff  accuracy
+    ## 1    0.3 0.7045455
+    ## 2    0.5 0.7626263
+    ## 3    0.7 0.7853535
+
+## Exercise 4.2
+
+``` r
+cutoffs_fine <- seq(0.1, 0.9, by = 0.05)
+
+cutoff_results_fine <- data.frame(
+  cutoff = cutoffs_fine,
+  accuracy = NA_real_
+)
+
+for (i in seq_along(cutoffs_fine)) {
+  c0 <- cutoffs_fine[i]
+  yhat_c <- ifelse(p_test > c0, 1, 0)
+  cutoff_results_fine$accuracy[i] <- mean(yhat_c == titanic_test_survived$survived, na.rm = TRUE)
+}
+
+ggplot(cutoff_results_fine, aes(x = cutoff, y = accuracy)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Test Accuracy Across Probability Cutoffs",
+    x = "Cutoff",
+    y = "Accuracy"
+  ) +
+  theme_minimal()
+```
+
+![](lab-11_files/figure-gfm/visualize-cutoffs-1.png)<!-- -->
+
+## Exercise 4.3
+
+- The cutoff of 0.7 maximized accuracy.
+
+- In this scenario, overestimating survival rates carries more danger
+  than underestimating survival rates, as an overestimate may lead to
+  inadequate safety preparation. Therefore, a conservative estimate in
+  this scenario would probably be better than a highly accurate estimate
+  (though it happened to be the case here that the most conservative
+  estimate was also the most accurate).
+
+- In a situation where false positives and false negatives had different
+  costs, I would want to know the expected costs of over-
+  vs. underestimating risk to make a more informed decision.
